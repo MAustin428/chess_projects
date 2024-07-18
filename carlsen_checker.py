@@ -28,14 +28,14 @@ def get_starting_player(player=None):
 def get_top_oppos(username):
     def get_oppo_id(oppo):
         return oppo['opId']['id']
-    def request_top_games_by_gametype(gametype):
-        return requests.request("GET", 'https://lichess.org/api/user/' + username + '/perf/' + gametype).json()
-    def build_top_oppos_dict_from_best_wins(gametype):
+    def request_top_games_by_game_speed(game_speed):
+        return requests.request("GET", 'https://lichess.org/api/user/' + username + '/perf/' + game_speed).json()
+    def build_top_oppos_dict_from_best_wins(game_speed):
         try:
             oppo_names = {}
-            user_json = request_top_games_by_gametype(gametype)
+            user_json = request_top_games_by_game_speed(game_speed)
             bw = user_json['stat']['bestWins']['results']
-            for oppo in bw:
+            for oppo in bw[:3]:
                 if get_oppo_id not in oppo_names:
                     oppo_names.update({get_oppo_id(oppo):oppo})
                 elif oppo['opRating'] > oppo_names[get_oppo_id(oppo)]['opRating']:
@@ -47,13 +47,14 @@ def get_top_oppos(username):
         except:
             print('user ', username, ' not found')
             return None
-    def combine_gametype_oppo_dicts(list_of_gametypes=['bullet','blitz','rapid']):
+    def combine_game_speed_oppo_dicts(list_of_game_speeds=['bullet','blitz']):
         top_oppos_combined_dict = {}
 
-        for gm in list_of_gametypes:
+        for gm in list_of_game_speeds:
             t = build_top_oppos_dict_from_best_wins(gm)
-            for op in t:
-                top_oppos_combined_dict.update({op:t[op]})
+            if t:
+                for op in t:
+                    top_oppos_combined_dict.update({op:t[op]})
 
         #f = lambda *x: None
         #f( *(print(x,' : ',y, '\n') for x,y in top_oppos_combined_dict.items()))
@@ -63,37 +64,52 @@ def get_top_oppos(username):
 
         return top_oppos_combined_dict
 
-    return combine_gametype_oppo_dicts()
-def recursive_search_player_best_wins(player_chain, target, depth):
+    return combine_game_speed_oppo_dicts()
+def recursive_search_player_best_wins(player_chain, depth, target):
+    print('Depth: ',len(player_chain))
+    print('Player chain: ',player_chain)
     username = player_chain[len(player_chain)-1]
-    if username is target:
+    carlsen_chain = []
+    if username.lower() == target.lower():
         return player_chain
     elif len(player_chain)>depth:
         return None
     else:
         for opponent in get_top_oppos(username):
-        #add opponent to player chain
-        #recursive search
-        #if returned chain ends in carlsen, compare to current carlsen chain, else discard
-            #if new chain shorter, replace current carlsen chain, else discard
-
             pc_ext = copy.copy(player_chain)
             pc_ext.append(opponent)
-            ret_player_chain = recursive_search_player_best_wins(pc_ext)
-            if ret_player_chain[len(ret_player_chain)-1] is target:
-                if !carlsen_chain or len(carlsen_chain) > len(ret_player_chain):
+            ret_player_chain = recursive_search_player_best_wins(pc_ext, depth, target)
+            print('Returned player chain: ',ret_player_chain)
+            if ret_player_chain and ret_player_chain[len(ret_player_chain)-1].lower() == target.lower():
+                if len(carlsen_chain)==0 or len(carlsen_chain) > len(ret_player_chain):
+                    print('Carlsen chain of length ',len(carlsen_chain),' found: ',carlsen_chain)
                     carlsen_chain = ret_player_chain
-    if carlsen_chain:
+    if len(carlsen_chain) > 0:
         return carlsen_chain
-    else return None
-def start_search(player, target='DrNykterstein', depth=5):
-    result_chain = recursive_search_player_best_wins(player, target, depth):
+    else:
+        return None
+def start_search(player, depth=5, target='drnykterstein'):
+    print('Data on ' + player + '...')
+    result_chain = recursive_search_player_best_wins([player], depth, target)
     if result_chain:
-        print(player, '\'s Carlsen Number is ',len(result_chain),'. The path of victories is ', result_chain)
+        print(player, '\'s Carlsen Number is ',len(result_chain)-1,'. The path of victories is ', result_chain)
     else:
         print(player, ' does not have a Carlsen number lower than', depth+1)
 
-
-username = get_starting_player(sys.argv[1]) if len(sys.argv)>1 else get_starting_player()
-print('Data on ' + username + '...')
-start_search(username)
+if len(sys.argv) == 1:
+    username = get_starting_player()
+    start_search(username)
+else:
+    username = get_starting_player(sys.argv[1])
+    if len(sys.argv) == 2:
+        start_search(username)
+    else:
+        depth = sys.argv[2]
+        if len(sys.argv) == 3:
+            start_search(username, depth)
+        else:
+            target = sys.argv[3]
+            if len(sys.argv) == 4:
+                start_search(username, depth, target)
+            else:
+                print('Too many command line variables.')

@@ -17,12 +17,12 @@ import copy
     # If a function call returns something besides null, append the returned player name to a list with the current player, and return
 
 
-def get_starting_player(player=None):
-    if player is None:
-        print('Which chess enthusiast do you want data on?')
+def get_starting_game(game_id=None):
+    if game_id is None:
+        print('Which chess game do you want data on?')
         return input()
     else:
-        return player
+        return game_id
 
 
 def get_top_oppos(username):
@@ -88,26 +88,41 @@ def recursive_search_player_best_wins(player_chain, depth, target):
         return carlsen_chain
     else:
         return None
-def start_search_by_game(player, depth=5, target='drnykterstein'):
-    print('Data on ' + player + '...')
-    result_chain = recursive_search_player_best_wins([player], depth, target)
-    if result_chain:
-        print(player, '\'s Carlsen Number is ',len(result_chain)-1,'. The path of victories is ', result_chain)
-    else:
-        print(player, ' does not have a Carlsen number lower than', depth+1)
 
 def request_starting_game(game_id):
-    return requests.request("GET", 'https://lichess.org/game/export/' + game_id, params = {'moves':'false', 'tags':'false', 'clocks':'false', 'evals':'false', 'division':'false', 'literate':'false'}, headers = {'Accept': 'application/json'})
+    request_url = 'https://lichess.org/game/export/'+game_id+''
+    return requests.request("GET", request_url, params = {'moves':'false', 'tags':'false', 'clocks':'false', 'evals':'false', 'division':'false', 'literate':'false'}, headers = {'Accept': 'application/json'})
 
-#def start_search_by_game(game_id):
+def start_search_by_game(game_id, depth=5, target='drnykterstein'):
+    def get_winner_and_loser(game_json):
+        def get_white_player(gj):
+            return gj['players']['white']['user']['id']
+        def get_black_player(gj):
+            return gj['players']['black']['user']['id']
+        
+        if 'winner' in game_json:
+            if game_json['winner'] == 'white':
+                return [get_white_player(game_json), get_black_player(game_json)]
+            elif game_json['winner'] == 'black':
+                return [get_black_player(game_json), get_white_player(game_json)]
+            else:
+                print('Something went wrong determining the winner of this game.')
+                return None
+        else:
+            print('You must choose a game with a winner')
+            return None
+    winner_and_loser_list = get_winner_and_loser(request_starting_game(game_id).json())
+    result_chain = recursive_search_player_best_wins(winner_and_loser_list, depth, target)
+    if result_chain:
+        print(winner_and_loser_list[0], '\'s Carlsen Number is ',len(result_chain)-1,'. The path of victories is ', result_chain)
+    else:
+        print(winner_and_loser_list[0], ' does not have a Carlsen number lower than', depth+1)
 
-response = request_starting_game(sys.argv[1])
-print(response.json())
 
-'''if len(sys.argv) == 1:
-    starting_game = request_starting_game()
+if len(sys.argv) == 1:
+    starting_game = get_starting_game()
 else:
-    starting_game = request_starting_game(sys.argv[1])
+    starting_game = get_starting_game(sys.argv[1])
     if len(sys.argv) == 2:
         start_search_by_game(starting_game)
     else:
@@ -119,4 +134,4 @@ else:
             if len(sys.argv) == 4:
                 start_search_by_game(starting_game, depth, target)
             else:
-                print('Too many command line variables.')'''
+                print('Too many command line variables.')
