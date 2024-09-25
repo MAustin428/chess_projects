@@ -35,7 +35,7 @@ def get_top_oppos(username):
             oppo_names = {}
             user_json = request_top_games_by_game_speed(game_speed)
             bw = user_json['stat']['bestWins']['results']
-            for oppo in bw[:3]:
+            for oppo in bw[:4]:
                 if get_oppo_id not in oppo_names:
                     oppo_names.update({get_oppo_id(oppo):oppo})
                 elif oppo['opRating'] > oppo_names[get_oppo_id(oppo)]['opRating']:
@@ -47,7 +47,7 @@ def get_top_oppos(username):
         except:
             print('user ', username, ' not found')
             return None
-    def combine_game_speed_oppo_dicts(list_of_game_speeds=['bullet','blitz']):
+    def combine_game_speed_oppo_dicts(list_of_game_speeds=['bullet']):
         top_oppos_combined_dict = {}
 
         for gm in list_of_game_speeds:
@@ -69,7 +69,7 @@ def recursive_search_player_best_wins(player_chain, depth, target):
     print('Depth: ',len(player_chain))
     print('Player chain: ',player_chain)
     username = player_chain[len(player_chain)-1]
-    carlsen_chain = []
+    magnus_chain = []
     if username.lower() == target.lower():
         return player_chain
     elif len(player_chain)>depth:
@@ -81,20 +81,22 @@ def recursive_search_player_best_wins(player_chain, depth, target):
             ret_player_chain = recursive_search_player_best_wins(pc_ext, depth, target)
             print('Returned player chain: ',ret_player_chain)
             if ret_player_chain and ret_player_chain[len(ret_player_chain)-1].lower() == target.lower():
-                if len(carlsen_chain)==0 or len(carlsen_chain) > len(ret_player_chain):
-                    print('Carlsen chain of length ',len(carlsen_chain),' found: ',carlsen_chain)
-                    carlsen_chain = ret_player_chain
-    if len(carlsen_chain) > 0:
-        return carlsen_chain
+                if len(magnus_chain)==0 or len(magnus_chain) > len(ret_player_chain):
+                    print('Magnus chain of length ',len(magnus_chain),' found: ',magnus_chain)
+                    magnus_chain = ret_player_chain
+    if len(magnus_chain) > 0:
+        return magnus_chain
     else:
         return None
 def start_search(player, depth=5, target='drnykterstein'):
     print('Data on ' + player + '...')
     result_chain = recursive_search_player_best_wins([player], depth, target)
     if result_chain:
-        print(player, '\'s Carlsen Number is ',len(result_chain)-1,'. The path of victories is ', result_chain)
+        print('\n\n', player, '\'s Magnus Number is ',len(result_chain)-1,'. The path of victories is:')
+        for i in result_chain:
+            print(i)
     else:
-        print(player, ' does not have a Carlsen number lower than', depth+1)
+        print('\n\n', player, ' does not have a Magnus number lower than', depth+1)
 
 if len(sys.argv) == 1:
     username = get_starting_player()
@@ -113,3 +115,29 @@ else:
                 start_search(username, depth, target)
             else:
                 print('Too many command line variables.')
+
+# Accepts up to three command line arguments, all optional. Order is username, depth, target.
+def process_command_line_arguments():
+    def number_of_command_line_arguments():
+        return len(sys.argv)-1
+
+    if number_of_command_line_arguments() == 0:
+        username = get_starting_player()
+        start_search(username)
+    else:
+        username = get_starting_player(sys.argv[1])
+        
+        if number_of_command_line_arguments() == 1:
+            start_search(username)
+        else:
+            depth = sys.argv[2]
+            
+            if number_of_command_line_arguments() == 2:
+                start_search(username, depth)
+            else:
+                target = sys.argv[3]
+                
+                if number_of_command_line_arguments() == 3:
+                    start_search(username, depth, target)
+                else:
+                    print('Too many command line variables.')
